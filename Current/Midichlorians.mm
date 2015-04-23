@@ -114,8 +114,10 @@ namespace midichlorians {
                 void SetServerUrl(const std::string &server_url) { server_url_ = server_url; }
                 
                 void SetDeviceId(const std::string &device_id) { device_id_ = device_id; }
-                
                 const std::string &GetDeviceId() const { return device_id_; }
+
+                void SetClientId(const std::string &client_id) { client_id_ = client_id; }
+                const std::string &GetClientId() const { return client_id_; }
                 
                 void OnMessage(const std::string &message) {
                     if (!server_url_.empty()) {
@@ -149,6 +151,7 @@ namespace midichlorians {
             private:
                 std::string server_url_;
                 std::string device_id_;
+                std::string client_id_;
             };
         }
         
@@ -317,7 +320,13 @@ using namespace midichlorians;
 
 + (void)emit:(const MidichloriansEvent &)event {
     Stats &instance = Singleton<Stats>::Instance();
-    instance.OnMessage(event.EventAsString(instance.GetDeviceId()));
+    instance.OnMessage(event.EventAsString(instance.GetDeviceId(), instance.GetClientId()));
+}
+
+// Identifies the user.
++ (void)identify:(NSString *)identifier {
+    Stats &instance = Singleton<Stats>::Instance();
+    instance.SetClientId([identifier UTF8String]);
 }
 
 @end
