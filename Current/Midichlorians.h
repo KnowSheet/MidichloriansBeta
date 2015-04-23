@@ -42,15 +42,18 @@
 
 struct MidichloriansEvent {
     mutable std::string device_id;
+    mutable std::string client_id;
     void SetDeviceId(const std::string& did) const { device_id = did; }
+    void SetClientId(const std::string& cid) const { client_id = cid; }
     
     template <class A>
     void serialize(A& ar) {
-        ar(CEREAL_NVP(device_id));
+        ar(CEREAL_NVP(device_id), CEREAL_NVP(client_id));
     }
     
-    virtual std::string EventAsString(const std::string& device_id) const {
+    virtual std::string EventAsString(const std::string& device_id, const std::string& client_id) const {
         SetDeviceId(device_id);
+        SetClientId(client_id);
         return JSON(WithBaseType<MidichloriansEvent>(*this));
     }
 };
@@ -61,21 +64,22 @@ struct MidichloriansEvent {
 #error "The `CURRENT_EVENT` macro should not be defined."
 #endif
 
-#define CURRENT_EVENT(M_EVENT_CLASS_NAME, M_IMMEDIATE_BASE)                       \
-struct M_EVENT_CLASS_NAME;                                                        \
-CEREAL_REGISTER_TYPE(M_EVENT_CLASS_NAME);                                         \
-struct M_EVENT_CLASS_NAME##Helper : M_IMMEDIATE_BASE {                            \
-typedef MidichloriansEvent CEREAL_BASE_TYPE;                                      \
-typedef M_IMMEDIATE_BASE SUPER;                                                   \
-virtual std::string EventAsString(const std::string& device_id) const override {  \
-SetDeviceId(device_id);                                                           \
-return JSON(WithBaseType<MidichloriansEvent>(*this));                             \
-}                                                                                 \
-template <class A>                                                                \
-void serialize(A& ar) {                                                           \
-SUPER::serialize(ar);                                                             \
-}                                                                                 \
-};                                                                                \
+#define CURRENT_EVENT(M_EVENT_CLASS_NAME, M_IMMEDIATE_BASE)                                         \
+struct M_EVENT_CLASS_NAME;                                                                          \
+CEREAL_REGISTER_TYPE(M_EVENT_CLASS_NAME);                                                           \
+struct M_EVENT_CLASS_NAME##Helper : M_IMMEDIATE_BASE {                                              \
+typedef MidichloriansEvent CEREAL_BASE_TYPE;                                                        \
+typedef M_IMMEDIATE_BASE SUPER;                                                                     \
+virtual std::string EventAsString(const std::string& did, const std::string& cid) const override {  \
+SetDeviceId(did);                                                                                   \
+SetClientId(cid);                                                                                   \
+return JSON(WithBaseType<MidichloriansEvent>(*this));                                               \
+}                                                                                                   \
+template <class A>                                                                                  \
+void serialize(A& ar) {                                                                             \
+SUPER::serialize(ar);                                                                               \
+}                                                                                                   \
+};                                                                                                  \
 struct M_EVENT_CLASS_NAME : M_EVENT_CLASS_NAME##Helper
 
 // Generic iOS events.
@@ -89,6 +93,15 @@ CURRENT_EVENT(iOSBaseEvent, MidichloriansEvent) {
     }
     iOSBaseEvent() = default;
     iOSBaseEvent(const std::string& d) : description(d) {}
+};
+
+CURRENT_EVENT(iOSIdentifyEvent, iOSBaseEvent) {
+    // An empty event, to catch the timestamp of the `identify()` call.
+    template <typename A>
+    void serialize(A & ar) {
+        SUPER::serialize(ar);
+    }
+    iOSIdentifyEvent() = default;
 };
 
 CURRENT_EVENT(iOSDeviceInfo, iOSBaseEvent) {
@@ -148,18 +161,22 @@ CURRENT_EVENT(iOSFocusEvent, iOSBaseEvent) {
 };
 
 CURRENT_EVENT(iOSGenericEvent, iOSBaseEvent) {
+    std::string event;
+    std::string source;
     std::map<std::string, std::string> fields;
     std::map<std::string, std::string> complex_fields;
     std::set<std::string> unparsable_fields;
     template <typename A>
     void serialize(A & ar) {
         SUPER::serialize(ar);
-        ar(CEREAL_NVP(fields), CEREAL_NVP(complex_fields), CEREAL_NVP(unparsable_fields));
+        ar(CEREAL_NVP(event), CEREAL_NVP(source), CEREAL_NVP(fields), CEREAL_NVP(complex_fields), CEREAL_NVP(unparsable_fields));
     }
     iOSGenericEvent() = default;
     iOSGenericEvent(const std::map<std::string, std::string>& dictionary) : fields(dictionary) {}
-    iOSGenericEvent(NSDictionary* input) {
+    iOSGenericEvent(NSString* input_event, NSString* input_source, NSDictionary* input) {
         // A somewhat strict yet safe way to parse dictionaries. Imperfect but works. -- D. K.
+        event = [input_event UTF8String];
+        source = [input_source UTF8String];
         for (NSString *k in input) {
             const char* key = (k && [k isKindOfClass:[NSString class]]) ? [k UTF8String] : nullptr;
             if (key) {
@@ -190,6 +207,9 @@ CURRENT_EVENT(iOSGenericEvent, iOSBaseEvent) {
 
 // Emits the event.
 + (void)emit:(const MidichloriansEvent&)event;
+
+// Identifies the user.
++ (void)identify:(NSString *)identifier;
 
 @end
 
