@@ -35,10 +35,16 @@
 
 #include <string>
 
+// Included from Bricks pulled in as a submodule of MidichloriansBeta.
+// If you get a compilation error here, `git submodule update` in MidichloriansBeta fixes it.
+#include "../Bricks/cerealize/cerealize.h"
+
+#ifndef COMPILE_MIDICHLORIANS_AS_SERVER_SIDE_CODE
+
 #import <Foundation/Foundation.h>
 #import <CoreLocation/CoreLocation.h>
 
-#include "../Bricks/cerealize/cerealize.h"
+#endif // COMPILE_MIDICHLORIANS_AS_SERVER_SIDE_CODE
 
 struct MidichloriansEvent {
     mutable std::string device_id;
@@ -173,6 +179,8 @@ CURRENT_EVENT(iOSGenericEvent, iOSBaseEvent) {
     }
     iOSGenericEvent() = default;
     iOSGenericEvent(const std::map<std::string, std::string>& dictionary) : fields(dictionary) {}
+
+#ifndef COMPILE_MIDICHLORIANS_AS_SERVER_SIDE_CODE
     iOSGenericEvent(NSString* input_event, NSString* input_source, NSDictionary* input) {
         // A somewhat strict yet safe way to parse dictionaries. Imperfect but works. -- D. K.
         event = [input_event UTF8String];
@@ -197,7 +205,11 @@ CURRENT_EVENT(iOSGenericEvent, iOSBaseEvent) {
             }
         }
     }
+#endif  // COMPILE_MIDICHLORIANS_AS_SERVER_SIDE_CODE
+
 };
+
+#ifndef COMPILE_MIDICHLORIANS_AS_SERVER_SIDE_CODE
 
 @interface Midichlorians : NSObject
 
@@ -212,5 +224,7 @@ CURRENT_EVENT(iOSGenericEvent, iOSBaseEvent) {
 + (void)identify:(NSString *)identifier;
 
 @end
+
+#endif
 
 #endif  // CURRENT_MIDICHLORIANS_H
