@@ -120,32 +120,34 @@ namespace midichlorians {
                 const std::string &GetClientId() const { return client_id_; }
                 
                 void OnMessage(const std::string &message) {
-                    if (!server_url_.empty()) {
-                        ::NSLog(@"LogEvent HTTP: `%s`", message.c_str());
-                        
-                        NSMutableURLRequest *req = [NSMutableURLRequest
-                                                    requestWithURL:[NSURL URLWithString:[NSString stringWithUTF8String:server_url_.c_str()]]];
-                        // TODO(dkorolev): Add `cachePolicy:NSURLRequestReloadIgnoringLocalCacheData`. I can't make it compile.
-                        
-                        req.HTTPMethod = @"POST";
-                        req.HTTPBody = [NSData dataWithBytes:message.data() length:message.length()];
-                        [req setValue:@"application/json" forHTTPHeaderField:@"Content-Type"];
-                        
-                        NSHTTPURLResponse *res = nil;
-                        NSError *err = nil;
-                        NSData *url_data = [NSURLConnection sendSynchronousRequest:req returningResponse:&res error:&err];
-                        
-                        // TODO(dkorolev): A bit more detailed error handling.
-                        // TODO(dkorolev): If the message queue is persistent, consider keeping unsent entries within it.
-                        static_cast<void>(url_data);
-                        if (!res) {
-                            ::NSLog(@"LogEvent HTTP: Fail.");
+                    @autoreleasepool {
+                        if (!server_url_.empty()) {
+                            ::NSLog(@"LogEvent HTTP: `%s`", message.c_str());
+                            
+                            NSMutableURLRequest *req = [NSMutableURLRequest
+                                                        requestWithURL:[NSURL URLWithString:[NSString stringWithUTF8String:server_url_.c_str()]]];
+                            // TODO(dkorolev): Add `cachePolicy:NSURLRequestReloadIgnoringLocalCacheData`. I can't make it compile.
+                            
+                            req.HTTPMethod = @"POST";
+                            req.HTTPBody = [NSData dataWithBytes:message.data() length:message.length()];
+                            [req setValue:@"application/json" forHTTPHeaderField:@"Content-Type"];
+                            
+                            NSHTTPURLResponse *res = nil;
+                            NSError *err = nil;
+                            NSData *url_data = [NSURLConnection sendSynchronousRequest:req returningResponse:&res error:&err];
+                            
+                            // TODO(dkorolev): A bit more detailed error handling.
+                            // TODO(dkorolev): If the message queue is persistent, consider keeping unsent entries within it.
+                            static_cast<void>(url_data);
+                            if (!res) {
+                                ::NSLog(@"LogEvent HTTP: Fail.");
+                            } else {
+                                ::NSLog(@"LogEvent HTTP: OK.");
+                            }
                         } else {
-                            ::NSLog(@"LogEvent HTTP: OK.");
+                            ::NSLog(@"LogEvent HTTP: No `server_url_` set.");
                         }
-                    } else {
-                        ::NSLog(@"LogEvent HTTP: No `server_url_` set.");
-                    }
+                    }  // @autoreleasepool
                 }
                 
             private:
